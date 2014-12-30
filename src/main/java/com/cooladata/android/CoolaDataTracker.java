@@ -2,13 +2,16 @@ package com.cooladata.android;
 
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.location.Location;
 import android.os.Build;
 import android.preference.PreferenceManager;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -29,6 +32,7 @@ public class CoolaDataTracker {
     private static boolean initialized = false;
     private static DeviceInfo deviceInfo;
     private static UtmData mUtmData = null;
+    private static String mRandomUUID;
 
     private CoolaDataTracker() {
     }
@@ -59,6 +63,7 @@ public class CoolaDataTracker {
 
             initializeDeviceInfo();
             mUtmData = new UtmData(context);
+            mRandomUUID = UUID.randomUUID().toString();
             initialized = true;
         }
     }
@@ -66,7 +71,7 @@ public class CoolaDataTracker {
     private static void initializeDeviceInfo() {
         deviceInfo = new DeviceInfo(context);
     }
-
+    
     /**
      * @param eventName
      */
@@ -94,8 +99,20 @@ public class CoolaDataTracker {
         checkedLogEvent(eventName, properties, null, null, userId);
     }
 
+    private static boolean checkReadPhoneStatePermission()
+    {
 
+        String permission = "android.permission.READ_PHONE_STATE";
+        int res = context.checkCallingOrSelfPermission(permission);
+        return (res == PackageManager.PERMISSION_GRANTED);            
+    }
 
+    private static String getDeviceId(){
+    	final TelephonyManager tm = (TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE);
+    	return tm.getDeviceId();
+     	
+    }
+    
     /**
      * @param eventName
      * @param eventProperties
@@ -105,7 +122,17 @@ public class CoolaDataTracker {
             Log.e(TAG, "trying to publish event before setup");
             return;
         }
-        checkedLogEvent(eventName, eventProperties,null,null,CoolaDataTracker.setupOptions.getUserId());
+        String userId = CoolaDataTracker.setupOptions.getUserId();
+        if (userId == null){ // User Id was not set
+        	if (checkReadPhoneStatePermission()){ // If has permission
+        		userId = getDeviceId();
+        	} else { // Random GUID
+        		userId = mRandomUUID;
+        	}
+        }
+
+        //checkedLogEvent(eventName, eventProperties, null, null, CoolaDataTracker.setupOptions.getUserId());
+        checkedLogEvent(eventName, eventProperties, null, null, userId);
     }
 
     private static void checkedLogEvent(final String eventName, final Map<String, Object> eventProperties, final String sessionId, final String eventId, final String userId) {

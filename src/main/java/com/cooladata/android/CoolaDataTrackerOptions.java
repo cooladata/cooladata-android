@@ -14,6 +14,15 @@ public class CoolaDataTrackerOptions {
      * The options object to use when setting up CoolaDataTracker
      *
      * @param appKey          Mandatory, the app key to use.
+     */
+    public CoolaDataTrackerOptions(String appKey) {
+        this.appKey = appKey;
+    }
+    
+    /**
+     * The options object to use when setting up CoolaDataTracker
+     *
+     * @param appKey          Mandatory, the app key to use.
      * @param userId          Optional, the user id for this user, you can set this value here once, and this value will be used with each event.
      */
     public CoolaDataTrackerOptions(String appKey, String userId) {
