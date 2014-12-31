@@ -1,0 +1,11 @@
+2.1.7             November 16, 2014
+  
+    - Collect utm tags (install referrer)
+    - Add junit tests
+    
+2.1.5             December 4, 2014
+ 
+    - JSON escaping
+    - Dispatching policy - every one minutes, or up to 20 events in the queue
+    - Better handling socket timeout (EOF Exception)
+    - Send POST request as form
