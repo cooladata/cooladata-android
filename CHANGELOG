@@ -1,3 +1,8 @@
+2.1.8             January 4, 2015
+  
+    - Add device ID
+    - Add sample test app
+
 2.1.7             December 4, 2014
   
     - Collect utm tags (install referrer)
