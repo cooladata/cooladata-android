@@ -19,7 +19,7 @@ public class Constants {
     public static final String TRACKER_TYPE_FIELD_NAME = "tracker_type";
     public static final String TRACKER_TYPE = "Android";
     public static final String TRACKER_VERSION_FIELD_NAME = "tracker_version";
-    public static final String TRACKER_VERSION = "2.1.7";
+    public static final String TRACKER_VERSION = "2.1.9";
     public static final String EVENT_NAME_FIELD_NAME = "event_name";
     public static final String USER_ID_FIELD_NAME = "user_id";
     public static final String SESSION_ID_FIELD_NAME = "session_id";

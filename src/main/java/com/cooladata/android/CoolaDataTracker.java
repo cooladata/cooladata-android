@@ -6,18 +6,18 @@ import java.util.UUID;
 
 
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
+import android.content.pm.PackageManager;
 import android.location.Location;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
-import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.cooladata.android.json.JSONObject;
-
-import org.json.JSONException;
 
 /**
  *
@@ -63,7 +63,14 @@ public class CoolaDataTracker {
 
             initializeDeviceInfo();
             mUtmData = new UtmData(context);
-            mRandomUUID = UUID.randomUUID().toString();
+            SharedPreferences mPref = context.getSharedPreferences(Constants.PREF_KEY, Context.MODE_PRIVATE);
+            mRandomUUID	= mPref.getString(Constants.USER_ID_FIELD_NAME, "");
+            if (mRandomUUID.equals("")){
+            	mRandomUUID = UUID.randomUUID().toString();
+            	Editor editor = mPref.edit();
+            	editor.putString(Constants.USER_ID_FIELD_NAME, mRandomUUID);
+            	editor.commit();
+            }
             initialized = true;
         }
     }
@@ -107,10 +114,27 @@ public class CoolaDataTracker {
         return (res == PackageManager.PERMISSION_GRANTED);            
     }
 
+    private static boolean checkReadNetworkStatePermission()
+    {
+
+        String permission = "android.permission.ACCESS_NETWORK_STATE";
+        int res = context.checkCallingOrSelfPermission(permission);
+        return (res == PackageManager.PERMISSION_GRANTED);            
+    }
+
     private static String getDeviceId(){
     	final TelephonyManager tm = (TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE);
     	return tm.getDeviceId();
-     	
+    	/*
+        final String tmDevice, tmSerial, androidId;
+        
+        tmDevice = "" + tm.getDeviceId();
+        tmSerial = "" + tm.getSimSerialNumber();
+        androidId = "" + android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+
+        UUID deviceUuid = new UUID(androidId.hashCode(), ((long)tmDevice.hashCode() << 32) | tmSerial.hashCode());
+        String deviceId = deviceUuid.toString();
+        */    	
     }
     
     /**
@@ -129,6 +153,7 @@ public class CoolaDataTracker {
         	} else { // Random GUID
         		userId = mRandomUUID;
         	}
+    		CoolaDataTracker.setupOptions.setUserId(userId);
         }
 
         //checkedLogEvent(eventName, eventProperties, null, null, CoolaDataTracker.setupOptions.getUserId());
@@ -157,7 +182,7 @@ public class CoolaDataTracker {
         });
     }
 
-    private static long trackEvent(String eventName, Map<String, Object> eventProperties, String sessionId, String eventId, String userId) {
+	private static long trackEvent(String eventName, Map<String, Object> eventProperties, String sessionId, String eventId, String userId) {
 
         JSONObject event = new JSONObject();
         try {
@@ -175,6 +200,7 @@ public class CoolaDataTracker {
                 event.put(Constants.SESSION_ID_FIELD_NAME, eventId);
 
             // device properties
+            
             event.put(Constants.TRACKER_TYPE_FIELD_NAME, Constants.TRACKER_TYPE);
             event.put(Constants.TRACKER_VERSION_FIELD_NAME, Constants.TRACKER_VERSION);
             event.put(Constants.SESSION_DUA_FIELD_NAME, System.getProperty("http.agent"));
@@ -188,6 +214,7 @@ public class CoolaDataTracker {
             event.put(Constants.SESSION_CARRIER, deviceInfo.carrier);
             event.put(Constants.SESSION_APP_ID_FIELD_NAME, deviceInfo.appId);
             event.put(Constants.SESSION_APP_VERSION_FIELD_NAME, deviceInfo.appVersion);
+            event.put(Constants.EVENT_CONNECTIVITY_STATE,  getNetworkState());
 
             if (mUtmData.HasInstallReferrer()){
             	event.put(Constants.SESSION_INSTALL_REFERRER,	mUtmData.getReferrerValue());
@@ -226,6 +253,46 @@ public class CoolaDataTracker {
     /**
      *
      */
+    
+    private static String getNetworkState(){
+    	String networkState = "Unknown";
+    	
+    	if (checkReadNetworkStatePermission()){
+    		ConnectivityManager manager = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+    		//For 3G check
+    		boolean isMobile = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isConnectedOrConnecting();
+    		boolean isWifi = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnectedOrConnecting();
+
+    		if (isWifi) {
+    			networkState = "WiFi";
+    		} else if (isMobile) {
+    			networkState = "Mobile";
+    		} else {
+    			networkState = "Offline";
+    		}
+    		/*
+    		ConnectivityManager connectivityManager=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+    		NetworkInfo networkInfo=null;
+    		if (connectivityManager != null) {
+    			networkInfo =connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+    			if (networkInfo.isAvailable()) {
+    				networkState = "WiFi";
+    			} else {
+    				networkInfo=connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+    				if (networkInfo.isAvailable()) {
+    					networkState = "Mobile";
+    				} else {
+    					networkState = "Offline";
+    				}
+    			}
+    		} else {
+    			networkState = "Offline";
+    		}*/
+    	}
+    	return networkState;
+    }
+    
     public static void flush() {
         EventPublisher.uploadEvents();
     }
