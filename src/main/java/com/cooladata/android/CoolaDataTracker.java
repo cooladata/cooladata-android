@@ -1,5 +1,7 @@
 package com.cooladata.android;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
@@ -11,8 +13,8 @@ import android.content.SharedPreferences.Editor;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Build;
+import android.os.Handler;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -33,6 +35,7 @@ public class CoolaDataTracker {
     private static DeviceInfo deviceInfo;
     private static UtmData mUtmData = null;
     private static String mRandomUUID;
+    private static String mAdvertisingId;
 
     private CoolaDataTracker() {
     }
@@ -61,6 +64,13 @@ public class CoolaDataTracker {
 
             CoolaDataTracker.setupOptions = options;
 
+            new Handler().post(new Runnable(){
+                @Override
+                public void run() {
+                    getAdvertisingId();
+                }
+            });
+            
             initializeDeviceInfo();
             mUtmData = new UtmData(context);
             SharedPreferences mPref = context.getSharedPreferences(Constants.PREF_KEY, Context.MODE_PRIVATE);
@@ -73,6 +83,28 @@ public class CoolaDataTracker {
             }
             initialized = true;
         }
+    }
+    public static void getAdvertisingId() {
+    	// This should not be called on the main thread.
+    	try {
+    		Class AdvertisingIdClient = Class.forName("com.google.android.gms.ads.identifier.AdvertisingIdClient");
+    		Method getAdvertisingInfo = AdvertisingIdClient.getMethod("getAdvertisingIdInfo", Context.class);
+    		Object advertisingInfo = getAdvertisingInfo.invoke(null, context);
+    		Method isLimitAdTrackingEnabled = advertisingInfo.getClass().getMethod("isLimitAdTrackingEnabled");
+    		Boolean limitAdTrackingEnabled = (Boolean) isLimitAdTrackingEnabled.invoke(advertisingInfo);
+
+    		if (limitAdTrackingEnabled) {
+    			return;
+    		}
+    		Method getId = advertisingInfo.getClass().getMethod("getId");
+    		mAdvertisingId = (String) getId.invoke(advertisingInfo);
+    	} catch (ClassNotFoundException e) {
+    		Log.w(TAG, "Google Play Services SDK not found!");
+    	} catch (InvocationTargetException e) {
+    		Log.w(TAG, "Google Play Services Invocation Target Exception!");
+    	} catch (Exception e) {
+    		Log.e(TAG, "Encountered an error connecting to Google Play Services", e);
+    	}
     }
 
     private static void initializeDeviceInfo() {
@@ -146,14 +178,25 @@ public class CoolaDataTracker {
             Log.e(TAG, "trying to publish event before setup");
             return;
         }
-        String userId = CoolaDataTracker.setupOptions.getUserId();
-        if (userId == null){ // User Id was not set
-        	if (checkReadPhoneStatePermission()){ // If has permission
-        		userId = getDeviceId();
-        	} else { // Random GUID
-        		userId = mRandomUUID;
+        String userId = null;
+        if (eventProperties.containsKey(Constants.USER_ID_FIELD_NAME)){
+        	if (!eventProperties.get(Constants.USER_ID_FIELD_NAME).equals("")){
+        		userId = eventProperties.get(Constants.USER_ID_FIELD_NAME).toString();
         	}
-    		CoolaDataTracker.setupOptions.setUserId(userId);
+        }
+
+        if (userId == null) {
+        	userId = CoolaDataTracker.setupOptions.getUserId();
+        	if (userId == null){ // User Id was not set
+        		if (mAdvertisingId != null) { // AdvertisingId
+        			userId = mAdvertisingId;
+        		} else if (checkReadPhoneStatePermission()){ // If has permission
+        			userId = getDeviceId();
+        		} else { // Random GUID
+        			userId = mRandomUUID;
+        		}
+        		CoolaDataTracker.setupOptions.setUserId(userId);
+        	}
         }
 
         //checkedLogEvent(eventName, eventProperties, null, null, CoolaDataTracker.setupOptions.getUserId());
@@ -214,7 +257,12 @@ public class CoolaDataTracker {
             event.put(Constants.SESSION_CARRIER, deviceInfo.carrier);
             event.put(Constants.SESSION_APP_ID_FIELD_NAME, deviceInfo.appId);
             event.put(Constants.SESSION_APP_VERSION_FIELD_NAME, deviceInfo.appVersion);
-            event.put(Constants.EVENT_CONNECTIVITY_STATE,  getNetworkState());
+            
+			String networkState = getNetworkState();
+			if(networkState.length() > 0)
+			{
+				event.put(Constants.EVENT_CONNECTIVITY_STATE,  networkState);
+			}
 
             if (mUtmData.HasInstallReferrer()){
             	event.put(Constants.SESSION_INSTALL_REFERRER,	mUtmData.getReferrerValue());
@@ -255,7 +303,7 @@ public class CoolaDataTracker {
      */
     
     private static String getNetworkState(){
-    	String networkState = "Unknown";
+    	String networkState = "";
     	
     	if (checkReadNetworkStatePermission()){
     		ConnectivityManager manager = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
