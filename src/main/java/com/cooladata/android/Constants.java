@@ -7,9 +7,9 @@ public class Constants {
     public static final String PREFKEY_PREVIOUS_END_SESSION_ID = PACKAGE_NAME + ".previousEndSessionId";
     public static final int EVENT_UPLOAD_THRESHOLD = 20;
     public static final int EVENT_UPLOAD_MAX_BATCH_SIZE = 20;
-    public static final int EVENT_MAX_COUNT = 1000;
+    public static int EVENT_MAX_COUNT = 500;
     public static final int EVENT_REMOVE_BATCH_SIZE = 20;
-    public static final long EVENT_UPLOAD_PERIOD_MILLIS = 60 * 1000; // 30s
+    public static long EVENT_UPLOAD_PERIOD_MILLIS = 30 * 1000; // 30s
 
 
     // from cooladata
@@ -19,7 +19,7 @@ public class Constants {
     public static final String TRACKER_TYPE_FIELD_NAME = "tracker_type";
     public static final String TRACKER_TYPE = "Android";
     public static final String TRACKER_VERSION_FIELD_NAME = "tracker_version";
-    public static final String TRACKER_VERSION = "2.1.9";
+    public static final String TRACKER_VERSION = "2.2.0";
     public static final String EVENT_NAME_FIELD_NAME = "event_name";
     public static final String USER_ID_FIELD_NAME = "user_id";
     public static final String SESSION_ID_FIELD_NAME = "session_id";

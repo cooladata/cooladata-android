@@ -33,6 +33,7 @@ public class CoolaDataTracker {
 
     private static boolean initialized = false;
     private static DeviceInfo deviceInfo;
+    private static Thresholds thresholds;
     private static UtmData mUtmData = null;
     private static String mRandomUUID;
     private static String mAdvertisingId;
@@ -72,6 +73,7 @@ public class CoolaDataTracker {
             });
             
             initializeDeviceInfo();
+            initializeThresholds();
             mUtmData = new UtmData(context);
             SharedPreferences mPref = context.getSharedPreferences(Constants.PREF_KEY, Context.MODE_PRIVATE);
             mRandomUUID	= mPref.getString(Constants.USER_ID_FIELD_NAME, "");
@@ -111,6 +113,9 @@ public class CoolaDataTracker {
         deviceInfo = new DeviceInfo(context);
     }
     
+    private static void initializeThresholds(){
+    	thresholds = new Thresholds(context);
+    }
     /**
      * @param eventName
      */

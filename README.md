@@ -13,14 +13,14 @@ Add this dependency to your project's POM:
     <dependency>
       <groupId>com.cooladata</groupId>
       <artifactId>cooladata-android</artifactId>
-      <version>2.1.8</version>
+      <version>2.2.0</version>
     </dependency>
 
 ### Gradle users
 
 Add this dependency to your project's build file:
 
-    compile "com.cooladata:cooladata-android:2.1.8"
+    compile "com.cooladata:cooladata-android:2.2.0"
 
 ### Manually
 
