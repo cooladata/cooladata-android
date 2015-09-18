@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -48,6 +49,7 @@ public class EventPublisher {
 
     private static AtomicBoolean updateScheduled = new AtomicBoolean(false);
     private static AtomicBoolean uploadingCurrently = new AtomicBoolean(false);
+    private static CustomEventHandler customEventHandler = null;
 
     /**
      * @param event
@@ -57,6 +59,12 @@ public class EventPublisher {
         try {
             DatabaseHelper dbHelper = DatabaseHelper.getDatabaseHelper(context);
             long eventId = dbHelper.addEvent(event.toString());
+
+            // custom event handler logic
+            CustomEventHandler customHandler = getCustomEventHandler();
+            if(customHandler != null) {
+                customHandler.recordEvents(context, Arrays.asList(event));
+            }
 
             if (dbHelper.getEventCount() >= Constants.EVENT_MAX_COUNT) {
             	mDelMaxCount += dbHelper.removeEvents(dbHelper.getNthEventId(Constants.EVENT_REMOVE_BATCH_SIZE));
@@ -164,16 +172,22 @@ public class EventPublisher {
                 }
                 eventsData.put("events",arr);
 
-                httpThread.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        String endPoint = String.format(Constants.COOLADATA_SERVICE_MULTI_ENDPOINT,
-                                CoolaDataTracker.setupOptions.getServiceEndPoint(), CoolaDataTracker.setupOptions.getAppKey());
-                        if(makeEventUploadPostRequest(endPoint, eventsData, maxId)){
-                            uploadEvents();
+                // custom event handler logic
+                CustomEventHandler customHandler = getCustomEventHandler();
+                if(customHandler != null) {
+                    customHandler.publishEvents(context, arr);
+                } else {
+                    httpThread.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            String endPoint = String.format(Constants.COOLADATA_SERVICE_MULTI_ENDPOINT,
+                                    CoolaDataTracker.setupOptions.getServiceEndPoint(), CoolaDataTracker.setupOptions.getAppKey());
+                            if (makeEventUploadPostRequest(endPoint, eventsData, maxId)) {
+                                uploadEvents();
+                            }
                         }
-                    }
-                });
+                    });
+                }
             } catch (Throwable e) {
                 uploadingCurrently.set(false);
                 Log.e(CoolaDataTracker.TAG, e.toString());
@@ -349,5 +363,35 @@ public class EventPublisher {
         return buffer.toByteArray();
     }
 
+    /**
+     * Returns an instance of a custom event handler. If the handler class
+     * was not defined in the tracker options, this method will return null.
+     * Otherwise, it will return an instance of the handler and, if it has not
+     * been previously instantiated, it will create it first.
+     *
+     * @return
+     * @throws Exception
+     */
+    private static CustomEventHandler getCustomEventHandler() throws Exception {
+        if(customEventHandler != null) {
+            return customEventHandler;
+        }
+
+        String className = CoolaDataTracker.setupOptions.getCustomEventHandlerClassName();
+        if(className == null) {
+            return null;
+        }
+
+        try {
+            Class<?> clazz = Class.forName(className);
+            customEventHandler = (CustomEventHandler)clazz.newInstance();
+        } catch(ClassNotFoundException cnfe) {
+            throw new IllegalStateException("Invalid custom event handler class name: " + className, cnfe);
+        } catch(Throwable t) {
+            throw new IllegalStateException("Error instantiating custom event handler " + className, t);
+        }
+
+        return customEventHandler;
+    }
 
 }

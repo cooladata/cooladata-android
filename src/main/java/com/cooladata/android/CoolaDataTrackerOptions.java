@@ -9,6 +9,7 @@ public class CoolaDataTrackerOptions {
     private String userId = null;
     private String sessionId = null;
     private boolean loggingEnabled = false;
+    private String customEventHandlerClassName = null;
 
     /**
      * The options object to use when setting up CoolaDataTracker
@@ -130,6 +131,20 @@ public class CoolaDataTrackerOptions {
     }
 
     /**
+     * @return
+     */
+    public String getCustomEventHandlerClassName() {
+        return customEventHandlerClassName;
+    }
+
+    /**
+     * @param customEventHandlerClassName
+     */
+    public void setCustomEventHandlerClassName(String customEventHandlerClassName) {
+        this.customEventHandlerClassName = customEventHandlerClassName;
+    }
+
+    /**
      * @param userId
      * @return
      */
@@ -166,6 +181,7 @@ public class CoolaDataTrackerOptions {
     @Override
     public String toString() {
         return "CoolaDataTrackerOptions{" + "appKey='" + appKey + '\'' + ", serviceEndPoint='" + serviceEndPoint + '\'' + ", userId='"
-                + userId + '\'' + ", sessionId='" + sessionId + '\'' + ", loggingEnabled=" + loggingEnabled + '}';
+                + userId + '\'' + ", sessionId='" + sessionId + '\'' + ", loggingEnabled=" + loggingEnabled + '\'' + ", customEventHandlerClassName=" +
+                customEventHandlerClassName + '}';
     }
 }
