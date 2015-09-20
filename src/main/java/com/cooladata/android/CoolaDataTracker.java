@@ -309,41 +309,46 @@ public class CoolaDataTracker {
     
     private static String getNetworkState(){
     	String networkState = "";
-    	
-    	if (checkReadNetworkStatePermission()){
-    		ConnectivityManager manager = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
-    		//For 3G check
-    		boolean isMobile = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isConnectedOrConnecting();
-    		boolean isWifi = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnectedOrConnecting();
+        try {
+            if (checkReadNetworkStatePermission()){
+                ConnectivityManager manager = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
-    		if (isWifi) {
-    			networkState = "WiFi";
-    		} else if (isMobile) {
-    			networkState = "Mobile";
-    		} else {
-    			networkState = "Offline";
-    		}
-    		/*
-    		ConnectivityManager connectivityManager=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
-    		NetworkInfo networkInfo=null;
-    		if (connectivityManager != null) {
-    			networkInfo =connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-    			if (networkInfo.isAvailable()) {
-    				networkState = "WiFi";
-    			} else {
-    				networkInfo=connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
-    				if (networkInfo.isAvailable()) {
-    					networkState = "Mobile";
-    				} else {
-    					networkState = "Offline";
-    				}
-    			}
-    		} else {
-    			networkState = "Offline";
-    		}*/
-    	}
-    	return networkState;
+                //For 3G check
+                boolean isMobile = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isConnectedOrConnecting();
+                boolean isWifi = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnectedOrConnecting();
+
+                if (isWifi) {
+                    networkState = "WiFi";
+                } else if (isMobile) {
+                    networkState = "Mobile";
+                } else {
+                    networkState = "Offline";
+                }
+                /*
+                ConnectivityManager connectivityManager=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo networkInfo=null;
+                if (connectivityManager != null) {
+                    networkInfo =connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                    if (networkInfo.isAvailable()) {
+                        networkState = "WiFi";
+                    } else {
+                        networkInfo=connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+                        if (networkInfo.isAvailable()) {
+                            networkState = "Mobile";
+                        } else {
+                            networkState = "Offline";
+                        }
+                    }
+                } else {
+                    networkState = "Offline";
+                }*/
+            }
+        } catch (Exception e) {
+            // Make sure this is caught here and will not prevent other steps of properties collection into the event
+            Log.e(TAG, e.toString());
+        }
+        return networkState;
     }
     
     public static void flush() {
