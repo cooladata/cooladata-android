@@ -16,6 +16,7 @@ public class Constants {
     public static final int DATABASE_VERSION = 1;
     public static final String DATABASE_NAME = "CooladataEvents";
     public static final String COOLADATA_SERVICE_MULTI_ENDPOINT = "%s/egw/3/%s/multi/json";
+    public static final String COOLADATA_SERVICE_CONFIG_ENDPOINT = "%s/egw/2/%s/config";
     public static final String TRACKER_TYPE_FIELD_NAME = "tracker_type";
     public static final String TRACKER_TYPE = "Android";
     public static final String TRACKER_VERSION_FIELD_NAME = "tracker_version";

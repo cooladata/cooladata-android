@@ -1,12 +1,5 @@
 package com.cooladata.android;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.UUID;
-
-
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
@@ -20,6 +13,12 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.cooladata.android.json.JSONObject;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.UUID;
 
 /**
  *
@@ -83,6 +82,14 @@ public class CoolaDataTracker {
             	editor.putString(Constants.USER_ID_FIELD_NAME, mRandomUUID);
             	editor.commit();
             }
+
+            EventPublisher.runOnLogThread(new Runnable() {
+                @Override
+                public void run() {
+                    EventPublisher.tryUpdateCallibrationTimeDelta();
+                }
+            });
+
             initialized = true;
         }
     }
@@ -238,7 +245,11 @@ public class CoolaDataTracker {
             // event mandatories
             event.put(Constants.EVENT_NAME_FIELD_NAME, eventName);
             event.put(Constants.USER_ID_FIELD_NAME, userId);
-            event.put(Constants.EVENT_TIMESTAMP_FIELD_NAME, System.currentTimeMillis());
+
+
+            long currentTimeDelta = EventPublisher.getCalibrationTimeDelta();
+
+            event.put(Constants.EVENT_TIMESTAMP_FIELD_NAME, System.currentTimeMillis() - currentTimeDelta);
 
             // event optional
             if (!TextUtils.isEmpty(sessionId))
