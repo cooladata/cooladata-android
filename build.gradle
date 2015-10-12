@@ -37,6 +37,7 @@ dependencies {
 task jar(type: Jar) {
     baseName = 'cooladata-android-2.2.1'
     from('build/intermediates/classes/release/') {
-        exclude '**/R*.class'
+        exclude '**/R.class'
+        exclude '**/R$*.class'
     }
 }

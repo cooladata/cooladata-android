@@ -1,12 +1,16 @@
 package com.cooladata.android;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONException;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -38,6 +43,10 @@ public class EventPublisher {
     private static long mDelCount = 0; 
     private static long mDelMaxCount = 0;
     private static long mLoadCount = 0;
+
+    private static Long calibrationTimeDelta = null;
+
+
 
     static {
         httpThread.setDaemon(false);
@@ -118,8 +127,10 @@ public class EventPublisher {
     	mDelMaxCount = 0;
     }
     
-    public static void resetLoadCount(){
-    	mLoadCount = 0;
+    public static void resetLoadCount(){ mLoadCount = 0;}
+
+    public static Long getCalibrationTimeDelta() {
+        return calibrationTimeDelta == null? 0: calibrationTimeDelta;
     }
     
     public static long getEventCount(){
@@ -140,11 +151,34 @@ public class EventPublisher {
         }
     }
 
+
+    public static void tryUpdateCallibrationTimeDelta(){
+        if (!isOnline(context)){
+            return;
+        }
+
+        httpThread.post(new Runnable() {
+            @Override
+            public void run() {
+                String endPoint = String.format(Constants.COOLADATA_SERVICE_CONFIG_ENDPOINT,
+                        CoolaDataTracker.setupOptions.getServiceEndPoint(), CoolaDataTracker.setupOptions.getAppKey());
+                updateCalibrationTimeDelta(endPoint);
+            }
+        });
+    }
     // Always call this from logThread
     private static void updateServer(boolean limit) {
         if (!isOnline(context)){
             return;
         }
+
+
+        tryUpdateCallibrationTimeDelta();
+        if (calibrationTimeDelta == null) {
+            // for some reason was not able to obrtain calibration time delta until now. retry
+            tryUpdateCallibrationTimeDelta();
+        }
+
         if (!uploadingCurrently.getAndSet(true)) {
             DatabaseHelper dbHelper = DatabaseHelper.getDatabaseHelper(context);
             try {
@@ -303,6 +337,59 @@ public class EventPublisher {
         return uploadSuccess;
     }
 
+
+
+    private static void updateCalibrationTimeDelta(String url) {
+        URL obj = null;
+        BufferedReader in = null;
+        try {
+            obj = new URL(url);
+
+            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+
+            int responseCode = con.getResponseCode();
+
+            in = new BufferedReader(
+                    new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+
+            try {
+                org.json.JSONObject config = new org.json.JSONObject(response.toString());
+
+                Long serverTimeMillis =  (Long)((org.json.JSONObject)config.get("configuration")).get("calibrationTimestampMillis");
+
+                if(serverTimeMillis!=null){
+                    calibrationTimeDelta = System.currentTimeMillis() - serverTimeMillis;
+                    Log.d(CoolaDataTracker.TAG, "Calibration time delta was set to :" + calibrationTimeDelta/1000 + "seconds");
+                }else{
+                    Log.e(CoolaDataTracker.TAG, "bad JSON"+ config.toString());
+                }
+            } catch (JSONException e) {
+                Log.e(CoolaDataTracker.TAG, "Unable to parse config JSON:",e);
+            }
+
+
+        }catch (MalformedURLException e) {
+            Log.e(CoolaDataTracker.TAG, "Get config Exception:", e);
+        } catch (ProtocolException e) {
+            Log.e(CoolaDataTracker.TAG, "Get config Exception:", e);
+        } catch (IOException e) {
+            Log.e(CoolaDataTracker.TAG, "Get config Exception:", e);
+        }finally {
+            try {
+                in.close();
+            } catch (IOException e) {
+                ;
+            }
+        }
+    }
+
+   
 
     private static void removeEventsAndReturn(final long maxId){
         logThread.post(new Runnable() {
