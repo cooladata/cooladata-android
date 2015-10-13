@@ -207,9 +207,18 @@ public class EventPublisher {
                 eventsData.put("events",arr);
 
                 // custom event handler logic
-                CustomEventHandler customHandler = getCustomEventHandler();
+                final CustomEventHandler customHandler = getCustomEventHandler();
                 if(customHandler != null) {
-                    customHandler.publishEvents(context, arr);
+                    httpThread.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                customHandler.publishEvents(context, arr);
+                                removeEventsAndReturn(maxId);
+                            }catch(Exception x){
+                                Log.e(CoolaDataTracker.TAG, "failed to update Custom handler ("+ customHandler.getClass().getCanonicalName() +") :"+ x.getMessage());
+                            }
+                        }});
                 } else {
                     httpThread.post(new Runnable() {
                         @Override
@@ -457,9 +466,8 @@ public class EventPublisher {
      * been previously instantiated, it will create it first.
      *
      * @return
-     * @throws Exception
      */
-    private static CustomEventHandler getCustomEventHandler() throws Exception {
+    private static CustomEventHandler getCustomEventHandler()  {
         if(customEventHandler != null) {
             return customEventHandler;
         }
