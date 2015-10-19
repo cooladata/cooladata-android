@@ -181,7 +181,6 @@ public class EventPublisher {
         }
 
 
-        tryUpdateCallibrationTimeDelta();
         if (calibrationTimeDelta == null) {
             // for some reason was not able to obrtain calibration time delta until now. retry
             tryUpdateCallibrationTimeDelta();
