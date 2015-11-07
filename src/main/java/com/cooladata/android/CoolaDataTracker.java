@@ -12,7 +12,8 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.cooladata.android.json.JSONObject;
+
+import org.json.JSONObject;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -292,10 +293,7 @@ public class CoolaDataTracker {
             // user properties
             if (eventProperties!=null && eventProperties.entrySet().size()>0) {
                 for (Entry<String, Object> entry : eventProperties.entrySet()) {
-                    if (entry.getValue() instanceof String) // escaping
-                        event.put(entry.getKey(), com.cooladata.android.json.JSONObject.escape((String) entry.getValue()));
-                    else
-                        event.put(entry.getKey(), entry.getValue());
+                    event.put(entry.getKey(), entry.getValue());
                 }
             }
 

@@ -1,7 +1,10 @@
 package com.cooladata.android;
 
 import android.content.Context;
-import com.cooladata.android.json.JSONObject;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.List;
 
 /**
@@ -25,6 +28,6 @@ public interface CustomEventHandler {
      * @param events events
      * @throws Exception if an error occurs
      */
-    public void publishEvents(Context context, List<JSONObject> events) throws Exception;
+    public void publishEvents(Context context, JSONArray events) throws Exception;
 
 }

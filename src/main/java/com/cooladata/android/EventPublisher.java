@@ -1,5 +1,19 @@
 package com.cooladata.android;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Build;
+import android.util.Log;
+import android.util.Pair;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -17,25 +31,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.message.BasicNameValuePair;
-import org.json.JSONException;
-
-import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.os.Build;
-import android.util.Log;
-import android.util.Pair;
-
-import com.cooladata.android.json.JSONArray;
-import com.cooladata.android.json.JSONObject;
-import com.cooladata.android.json.parser.JSONParser;
 
 public class EventPublisher {
 
-    final static JSONParser jsonParser = new JSONParser();
+    //final static JSONParser jsonParser = new JSONParser();
 
 
     static Context context;
@@ -200,8 +199,8 @@ public class EventPublisher {
                 final JSONArray arr = new JSONArray();
 
                 for (String eventWrapper : pair.second) {
-                    JSONObject event = (JSONObject) jsonParser.parse(eventWrapper);
-                    arr.add(event);
+                    JSONObject event = new JSONObject(eventWrapper);
+                    arr.put(event);
                 }
                 eventsData.put("events",arr);
 
@@ -266,7 +265,7 @@ public class EventPublisher {
                 connection.setDoOutput(true);
 
                 List<NameValuePair> params = new ArrayList<NameValuePair>(1);
-                BasicNameValuePair data = new BasicNameValuePair("data",events.toJSONString());
+                BasicNameValuePair data = new BasicNameValuePair("data",events.toString());
                 params.add(data);
                 final UrlEncodedFormEntity form = new UrlEncodedFormEntity(params, "UTF-8");
 
@@ -405,7 +404,7 @@ public class EventPublisher {
         }finally {
             try {
                 in.close();
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 ;
             }
         }
