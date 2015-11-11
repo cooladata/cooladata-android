@@ -7,6 +7,12 @@ import android.os.Build;
 import android.util.Log;
 import android.util.Pair;
 
+import com.squareup.okhttp.FormEncodingBuilder;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.RequestBody;
+import com.squareup.okhttp.Response;
+
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.message.BasicNameValuePair;
@@ -40,12 +46,13 @@ public class EventPublisher {
     static Context context;
     static WorkerThread httpThread = new WorkerThread("httpThread");
     static WorkerThread logThread = new WorkerThread("logThread");
-    private static long mDelCount = 0; 
+    private static OkHttpClient httpClient;
+    private static long mDelCount = 0;
     private static long mDelMaxCount = 0;
     private static long mLoadCount = 0;
 
-    private static Long calibrationTimeDelta = null;
 
+    private static Long calibrationTimeDelta = null;
 
 
     static {
@@ -53,6 +60,7 @@ public class EventPublisher {
         httpThread.start();
         logThread.setDaemon(false);
         logThread.start();
+        httpClient = new OkHttpClient();
     }
 
     private static AtomicBoolean updateScheduled = new AtomicBoolean(false);
@@ -70,12 +78,12 @@ public class EventPublisher {
 
             // custom event handler logic
             CustomEventHandler customHandler = getCustomEventHandler();
-            if(customHandler != null) {
+            if (customHandler != null) {
                 customHandler.recordEvents(context, Arrays.asList(event));
             }
 
             if (dbHelper.getEventCount() >= Constants.EVENT_MAX_COUNT) {
-            	mDelMaxCount += dbHelper.removeEvents(dbHelper.getNthEventId(Constants.EVENT_REMOVE_BATCH_SIZE));
+                mDelMaxCount += dbHelper.removeEvents(dbHelper.getNthEventId(Constants.EVENT_REMOVE_BATCH_SIZE));
             }
 
             if (dbHelper.getEventCount() >= Constants.EVENT_UPLOAD_THRESHOLD) {
@@ -84,9 +92,8 @@ public class EventPublisher {
                 updateServerLater(Constants.EVENT_UPLOAD_PERIOD_MILLIS);
             }
             return eventId;
-        }
-        catch (Throwable e){
-            Log.e(CoolaDataTracker.TAG,"error in logEvent",e);
+        } catch (Throwable e) {
+            Log.e(CoolaDataTracker.TAG, "error in logEvent", e);
             return -1;
         }
     }
@@ -114,36 +121,39 @@ public class EventPublisher {
         });
     }
 
-    public static long getDelCount(){
-    	return mDelCount;
+    public static long getDelCount() {
+        return mDelCount;
     }
 
-    public static long getDelMaxCount(){
-    	return mDelMaxCount;
-    }
-    
-    public static long getLoadCount(){
-    	return mLoadCount;
+    public static long getDelMaxCount() {
+        return mDelMaxCount;
     }
 
-    public static void resetDelCount(){
-    	mDelCount = 0;
+    public static long getLoadCount() {
+        return mLoadCount;
     }
 
-    public static void resetDelMaxCount(){
-    	mDelMaxCount = 0;
+    public static void resetDelCount() {
+        mDelCount = 0;
     }
-    
-    public static void resetLoadCount(){ mLoadCount = 0;}
+
+    public static void resetDelMaxCount() {
+        mDelMaxCount = 0;
+    }
+
+    public static void resetLoadCount() {
+        mLoadCount = 0;
+    }
 
     public static Long getCalibrationTimeDelta() {
-        return calibrationTimeDelta == null? 0: calibrationTimeDelta;
+        return calibrationTimeDelta == null ? 0 : calibrationTimeDelta;
     }
-    
-    public static long getEventCount(){
-    	DatabaseHelper dbHelper = DatabaseHelper.getDatabaseHelper(context);
-    	return dbHelper.getEventCount();
+
+    public static long getEventCount() {
+        DatabaseHelper dbHelper = DatabaseHelper.getDatabaseHelper(context);
+        return dbHelper.getEventCount();
     }
+
     private static void updateServerLater(long delayMillis) {
         if (!updateScheduled.getAndSet(true)) {
 
@@ -159,8 +169,8 @@ public class EventPublisher {
     }
 
 
-    public static void tryUpdateCallibrationTimeDelta(){
-        if (!isOnline(context)){
+    public static void tryUpdateCallibrationTimeDelta() {
+        if (!isOnline(context)) {
             return;
         }
 
@@ -169,13 +179,18 @@ public class EventPublisher {
             public void run() {
                 String endPoint = String.format(Constants.COOLADATA_SERVICE_CONFIG_ENDPOINT,
                         CoolaDataTracker.setupOptions.getServiceEndPoint(), CoolaDataTracker.setupOptions.getAppKey());
-                updateCalibrationTimeDelta(endPoint);
+                if (!CoolaDataTracker.setupOptions.isUseOldHttpClient()) {
+                    updateCalibrationTimeDelta(endPoint);
+                } else {
+                    updateCalibrationTimeDeltaDeprecated(endPoint);
+                }
             }
         });
     }
+
     // Always call this from logThread
     private static void updateServer(boolean limit) {
-        if (!isOnline(context)){
+        if (!isOnline(context)) {
             return;
         }
 
@@ -191,7 +206,7 @@ public class EventPublisher {
                 Pair<Long, List<String>> pair = dbHelper.getEvents(limit ? Constants.EVENT_UPLOAD_MAX_BATCH_SIZE : -1);
                 final long maxId = pair.first;
                 // no events
-                if (pair.second.size()==0){
+                if (pair.second.size() == 0) {
                     uploadingCurrently.set(false);
                     return;
                 }
@@ -202,28 +217,31 @@ public class EventPublisher {
                     JSONObject event = new JSONObject(eventWrapper);
                     arr.put(event);
                 }
-                eventsData.put("events",arr);
+                eventsData.put("events", arr);
 
                 // custom event handler logic
                 final CustomEventHandler customHandler = getCustomEventHandler();
-                if(customHandler != null) {
+                if (customHandler != null) {
                     httpThread.post(new Runnable() {
                         @Override
                         public void run() {
                             try {
                                 customHandler.publishEvents(context, arr);
                                 removeEventsAndReturn(maxId);
-                            }catch(Exception x){
-                                Log.e(CoolaDataTracker.TAG, "failed to update Custom handler ("+ customHandler.getClass().getCanonicalName() +") :"+ x.getMessage());
+                            } catch (Exception x) {
+                                Log.e(CoolaDataTracker.TAG, "failed to update Custom handler (" + customHandler.getClass().getCanonicalName() + ") :" + x.getMessage());
                             }
-                        }});
+                        }
+                    });
                 } else {
                     httpThread.post(new Runnable() {
                         @Override
                         public void run() {
                             String endPoint = String.format(Constants.COOLADATA_SERVICE_MULTI_ENDPOINT,
                                     CoolaDataTracker.setupOptions.getServiceEndPoint(), CoolaDataTracker.setupOptions.getAppKey());
-                            if (makeEventUploadPostRequest(endPoint, eventsData, maxId)) {
+                            if (CoolaDataTracker.setupOptions.isUseOldHttpClient() ?
+                                    makeEventUploadPostRequestDeprecated(endPoint, eventsData, maxId):
+                                    makeEventUploadPostRequest(endPoint, eventsData, maxId)) {
                                 uploadEvents();
                             }
                         }
@@ -237,10 +255,62 @@ public class EventPublisher {
     }
 
 
-
-
-
     private static boolean makeEventUploadPostRequest(String url, JSONObject events, final long maxId) {
+
+        boolean uploadSuccess = false;
+        int retries = 0;
+
+        while (retries++ < 3 && !uploadSuccess) {
+            try {
+                RequestBody body = new FormEncodingBuilder()
+                        .add("data", events.toString())
+                        .build();
+
+                Request request = new Request.Builder()
+                        .url(url)
+                        .post(body)
+                        .build();
+
+                Response response = httpClient.newCall(request).execute();
+                if (response.isSuccessful()) {
+                    uploadSuccess = true;
+                }
+
+                JSONObject jObject = new JSONObject(events.toString());
+                JSONArray jArray = jObject.getJSONArray("events");
+
+                mLoadCount += jArray.length();
+
+                // server response
+                if (uploadSuccess) {
+                    removeEventsAndReturn(maxId);
+                } else {
+                    Log.w(CoolaDataTracker.TAG, "Upload failed, will attempt to re-upload later");
+                }
+            } catch (java.net.ConnectException e) {
+                Log.w(CoolaDataTracker.TAG,
+                        "No internet connection found, unable to upload events");
+            } catch (java.net.UnknownHostException e) {
+                Log.w(CoolaDataTracker.TAG,
+                        "No internet connection found, unable to upload events");
+            } catch (IOException e) {
+                Log.e(CoolaDataTracker.TAG, e.toString());
+            } catch (AssertionError e) {
+                // This can be caused by a NoSuchAlgorithmException thrown by DefaultHttpClient
+                Log.e(CoolaDataTracker.TAG, "Exception:", e);
+            } catch (Exception e) {
+                // Just log any other exception so things don't crash on upload
+                Log.e(CoolaDataTracker.TAG, "Exception:", e);
+            }
+        }
+
+        if (!uploadSuccess) {
+            uploadingCurrently.set(false);
+        }
+        return uploadSuccess;
+    }
+
+    private static boolean makeEventUploadPostRequestDeprecated(String url, JSONObject events, final long maxId) {
 
         // plan to use the response to check out individual events in batch
         byte[] response = null;
@@ -265,12 +335,12 @@ public class EventPublisher {
                 connection.setDoOutput(true);
 
                 List<NameValuePair> params = new ArrayList<NameValuePair>(1);
-                BasicNameValuePair data = new BasicNameValuePair("data",events.toString());
+                BasicNameValuePair data = new BasicNameValuePair("data", events.toString());
                 params.add(data);
                 final UrlEncodedFormEntity form = new UrlEncodedFormEntity(params, "UTF-8");
 
                 connection.setRequestMethod("POST");
-                connection.setFixedLengthStreamingMode((int)form.getContentLength());
+                connection.setFixedLengthStreamingMode((int) form.getContentLength());
 
                 // addressing java.io.EOFException
                 if (Build.VERSION.SDK_INT > 13) {
@@ -286,45 +356,34 @@ public class EventPublisher {
                 out = null;
 
 
-
                 in = connection.getInputStream();
-                response  = slurp(in);
+                response = slurp(in);
                 in.close();
                 in = null;
                 uploadSuccess = true;
 
                 org.json.JSONObject jObject = new org.json.JSONObject(data.getValue());
                 org.json.JSONArray jArray = jObject.getJSONArray("events");
-                
+
                 mLoadCount += jArray.length();
 
                 // server response
                 if (uploadSuccess) {
                     removeEventsAndReturn(maxId);
-                }
-                else
-                {
+                } else {
                     Log.w(CoolaDataTracker.TAG, "Upload failed, will attempt to re-upload later");
                 }
-            }
-            catch(final EOFException e)
-            {
+            } catch (final EOFException e) {
                 // do not remove, retry now
                 continue;
-            }
-            catch(final IOException e){
+            } catch (final IOException e) {
                 // do not remove. Try again later
                 break;
-            }
-
-            catch (Throwable e)
-            {
+            } catch (Throwable e) {
                 Log.e(CoolaDataTracker.TAG, "Exception:", e);
                 removeEventsAndReturn(maxId);
                 break;
-            }
-            finally
-            {
+            } finally {
                 if (null != bout) {
                     try {
                         bout.close();
@@ -359,8 +418,45 @@ public class EventPublisher {
     }
 
 
-
     private static void updateCalibrationTimeDelta(String url) {
+        URL obj = null;
+        BufferedReader in = null;
+        try {
+
+            Request request = new Request.Builder().url(url).build();
+            Response response = httpClient.newCall(request).execute();
+
+
+            if (response.isSuccessful()) {
+                try {
+                    JSONObject config = new JSONObject(response.body().string());
+
+                    Long serverTimeMillis = (Long) ((JSONObject) config.get("configuration")).get("calibrationTimestampMillis");
+
+                    if (serverTimeMillis != null) {
+                        calibrationTimeDelta = System.currentTimeMillis() - serverTimeMillis;
+                        Log.d(CoolaDataTracker.TAG, "Calibration time delta was set to :" + calibrationTimeDelta / 1000 + "seconds");
+                    } else {
+                        Log.e(CoolaDataTracker.TAG, "bad JSON" + config.toString());
+                    }
+                } catch (JSONException e) {
+                    Log.e(CoolaDataTracker.TAG, "Unable to parse config JSON:", e);
+                }
+            } else {
+                Log.e(CoolaDataTracker.TAG, "Failed to send request to server: {" + response.code() + "} " + response.body().string());
+            }
+        } catch (IOException e) {
+            Log.e(CoolaDataTracker.TAG, "Get config Exception:", e);
+        } finally {
+            try {
+                in.close();
+            } catch (Throwable e) {
+                ;
+            }
+        }
+    }
+
+    private static void updateCalibrationTimeDeltaDeprecated(String url) {
         URL obj = null;
         BufferedReader in = null;
         try {
@@ -382,26 +478,26 @@ public class EventPublisher {
             try {
                 org.json.JSONObject config = new org.json.JSONObject(response.toString());
 
-                Long serverTimeMillis =  (Long)((org.json.JSONObject)config.get("configuration")).get("calibrationTimestampMillis");
+                Long serverTimeMillis = (Long) ((org.json.JSONObject) config.get("configuration")).get("calibrationTimestampMillis");
 
-                if(serverTimeMillis!=null){
+                if (serverTimeMillis != null) {
                     calibrationTimeDelta = System.currentTimeMillis() - serverTimeMillis;
-                    Log.d(CoolaDataTracker.TAG, "Calibration time delta was set to :" + calibrationTimeDelta/1000 + "seconds");
-                }else{
-                    Log.e(CoolaDataTracker.TAG, "bad JSON"+ config.toString());
+                    Log.d(CoolaDataTracker.TAG, "Calibration time delta was set to :" + calibrationTimeDelta / 1000 + "seconds");
+                } else {
+                    Log.e(CoolaDataTracker.TAG, "bad JSON" + config.toString());
                 }
             } catch (JSONException e) {
-                Log.e(CoolaDataTracker.TAG, "Unable to parse config JSON:",e);
+                Log.e(CoolaDataTracker.TAG, "Unable to parse config JSON:", e);
             }
 
 
-        }catch (MalformedURLException e) {
+        } catch (MalformedURLException e) {
             Log.e(CoolaDataTracker.TAG, "Get config Exception:", e);
         } catch (ProtocolException e) {
             Log.e(CoolaDataTracker.TAG, "Get config Exception:", e);
         } catch (IOException e) {
             Log.e(CoolaDataTracker.TAG, "Get config Exception:", e);
-        }finally {
+        } finally {
             try {
                 in.close();
             } catch (Throwable e) {
@@ -410,17 +506,15 @@ public class EventPublisher {
         }
     }
 
-   
 
-    private static void removeEventsAndReturn(final long maxId){
+    private static void removeEventsAndReturn(final long maxId) {
         logThread.post(new Runnable() {
             @Override
             public void run() {
-                try{
+                try {
                     DatabaseHelper dbHelper = DatabaseHelper.getDatabaseHelper(context);
                     mDelCount += dbHelper.removeEvents(maxId);
-                }
-                catch (Exception ignore){
+                } catch (Exception ignore) {
                     //
                 }
                 uploadingCurrently.set(false);
@@ -465,22 +559,22 @@ public class EventPublisher {
      *
      * @return
      */
-    private static CustomEventHandler getCustomEventHandler()  {
-        if(customEventHandler != null) {
+    private static CustomEventHandler getCustomEventHandler() {
+        if (customEventHandler != null) {
             return customEventHandler;
         }
 
         String className = CoolaDataTracker.setupOptions.getCustomEventHandlerClassName();
-        if(className == null) {
+        if (className == null) {
             return null;
         }
 
         try {
             Class<?> clazz = Class.forName(className);
-            customEventHandler = (CustomEventHandler)clazz.newInstance();
-        } catch(ClassNotFoundException cnfe) {
+            customEventHandler = (CustomEventHandler) clazz.newInstance();
+        } catch (ClassNotFoundException cnfe) {
             throw new IllegalStateException("Invalid custom event handler class name: " + className, cnfe);
-        } catch(Throwable t) {
+        } catch (Throwable t) {
             throw new IllegalStateException("Error instantiating custom event handler " + className, t);
         }
 

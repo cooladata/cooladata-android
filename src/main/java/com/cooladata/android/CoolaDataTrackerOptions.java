@@ -10,6 +10,17 @@ public class CoolaDataTrackerOptions {
     private String sessionId = null;
     private boolean loggingEnabled = false;
     private String customEventHandlerClassName = null;
+    private boolean useOldHttpClient = false;
+
+    public boolean isUseOldHttpClient() {
+        return useOldHttpClient;
+    }
+
+    @Deprecated
+    public void setUseOldHttpClient(boolean useOldHttpClient) {
+        this.useOldHttpClient = useOldHttpClient;
+    }
+
 
     /**
      * The options object to use when setting up CoolaDataTracker
