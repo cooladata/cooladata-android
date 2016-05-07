@@ -11,6 +11,7 @@ public class CoolaDataTrackerOptions {
     private boolean loggingEnabled = false;
     private String customEventHandlerClassName = null;
     private boolean useOldHttpClient = false;
+    private boolean useIdentityTrackingIfPossible = true;
 
     public boolean isUseOldHttpClient() {
         return useOldHttpClient;
@@ -21,6 +22,13 @@ public class CoolaDataTrackerOptions {
         this.useOldHttpClient = useOldHttpClient;
     }
 
+    public boolean isUseIdentityTrackingIfPossible() {
+        return useIdentityTrackingIfPossible;
+    }
+
+    public void setUseIdentityTrackingIfPossible(boolean useIdentityTrackingIfPossible) {
+        this.useIdentityTrackingIfPossible = useIdentityTrackingIfPossible;
+    }
 
     /**
      * The options object to use when setting up CoolaDataTracker

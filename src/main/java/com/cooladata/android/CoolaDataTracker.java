@@ -95,6 +95,10 @@ public class CoolaDataTracker {
         }
     }
     public static void getAdvertisingId() {
+        if(!setupOptions.isUseIdentityTrackingIfPossible()){
+            return;
+        }
+
     	// This should not be called on the main thread.
     	try {
     		Class AdvertisingIdClient = Class.forName("com.google.android.gms.ads.identifier.AdvertisingIdClient");
@@ -156,7 +160,7 @@ public class CoolaDataTracker {
 
         String permission = "android.permission.READ_PHONE_STATE";
         int res = context.checkCallingOrSelfPermission(permission);
-        return (res == PackageManager.PERMISSION_GRANTED);            
+        return (res == PackageManager.PERMISSION_GRANTED) && setupOptions.isUseIdentityTrackingIfPossible();
     }
 
     private static boolean checkReadNetworkStatePermission()
