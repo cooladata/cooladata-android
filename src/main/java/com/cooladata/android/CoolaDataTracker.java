@@ -6,12 +6,11 @@ import android.content.SharedPreferences.Editor;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
-import android.os.Handler;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
-
 
 import org.json.JSONObject;
 
@@ -65,7 +64,7 @@ public class CoolaDataTracker {
 
             CoolaDataTracker.setupOptions = options;
 
-            new Handler().post(new Runnable(){
+            EventPublisher.runOnLogThread(new Runnable(){
                 @Override
                 public void run() {
                     getAdvertisingId();
@@ -328,8 +327,11 @@ public class CoolaDataTracker {
                 ConnectivityManager manager = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
                 //For 3G check
-                boolean isMobile = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isConnectedOrConnecting();
-                boolean isWifi = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnectedOrConnecting();
+                NetworkInfo mobileNetwork = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+                boolean isMobile = mobileNetwork== null? false : mobileNetwork.isConnectedOrConnecting();
+
+                NetworkInfo wifiNetwork =  manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                boolean isWifi = wifiNetwork== null? false : wifiNetwork.isConnectedOrConnecting();
 
                 if (isWifi) {
                     networkState = "WiFi";
@@ -338,24 +340,7 @@ public class CoolaDataTracker {
                 } else {
                     networkState = "Offline";
                 }
-                /*
-                ConnectivityManager connectivityManager=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
-                NetworkInfo networkInfo=null;
-                if (connectivityManager != null) {
-                    networkInfo =connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-                    if (networkInfo.isAvailable()) {
-                        networkState = "WiFi";
-                    } else {
-                        networkInfo=connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
-                        if (networkInfo.isAvailable()) {
-                            networkState = "Mobile";
-                        } else {
-                            networkState = "Offline";
-                        }
-                    }
-                } else {
-                    networkState = "Offline";
-                }*/
+
             }
         } catch (Exception e) {
             // Make sure this is caught here and will not prevent other steps of properties collection into the event
