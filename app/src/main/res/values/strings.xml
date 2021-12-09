@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">CoolaDataSample</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="add_event">Add Event</string>
+    <string name="add_multi_event">Multi Event</string>
+    <string name="clear_event">Clear</string>    
+    <string name="stop_event">Stop</string>    
+    <string name="sample_expln">The purpose of this app is to test SDK only.</string>
+    <string name="event_num">Events:</string>
+    <string name="event_count">DB Count:</string>
+    <string name="load_num">Loaded:</string>
+    <string name="delete_num">Deleted:</string>
+    <string name="delmax_num">Del Via Max:</string>
+    <string name="log">Log:</string>
+    <string name="tiny_version_hint">Enter Tiny version</string>
+    <string name="batchSize_hint">Enter Batch Size</string>
+    
+
+</resources>
